@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput, ScrollView } from "react-native";
+import { StyleSheet, FlatList, TextInput, Text, View } from "react-native";
 import { theme } from "../theme";
 import { ShoppingListItem } from "../components/ShoppingListItem";
 import { useState } from "react";
@@ -15,7 +15,8 @@ const initialList: ShoppingListItemType[] = [
 ];
 
 export default function App() {
-  const [shoppingList, setShoppingList] = useState(initialList);
+  const [shoppingList, setShoppingList] =
+    useState<ShoppingListItemType[]>(initialList);
   const [value, setValue] = useState("");
 
   const handleSubmit = () => {
@@ -28,23 +29,28 @@ export default function App() {
   };
 
   return (
-    <ScrollView
+    <FlatList
+      data={shoppingList}
+      stickyHeaderIndices={[0]}
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
-      stickyHeaderIndices={[0]}
-    >
-      <TextInput
-        placeholder="E.g. Coffee"
-        style={styles.textInput}
-        value={value}
-        onChangeText={setValue}
-        returnKeyType="done"
-        onSubmitEditing={handleSubmit}
-      />
-      {shoppingList.map((item) => (
-        <ShoppingListItem key={item.id} name={item.name} />
-      ))}
-    </ScrollView>
+      ListEmptyComponent={
+        <View style={styles.listEmptyContainer}>
+          <Text>Your shopping list is empty. Start adding items!</Text>
+        </View>
+      }
+      ListHeaderComponent={
+        <TextInput
+          placeholder="E.g. Coffee"
+          style={styles.textInput}
+          value={value}
+          onChangeText={setValue}
+          returnKeyType="done"
+          onSubmitEditing={handleSubmit}
+        />
+      }
+      renderItem={({ item }) => <ShoppingListItem name={item.name} />}
+    />
   );
 }
 
@@ -65,5 +71,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colorLightGrey,
     fontSize: 18,
     backgroundColor: theme.colorWhite,
+  },
+  listEmptyContainer: {
+    marginVertical: 18,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
