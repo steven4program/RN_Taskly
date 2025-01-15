@@ -1,7 +1,10 @@
 import { StyleSheet, FlatList, TextInput, Text, View } from "react-native";
 import { theme } from "../theme";
 import { ShoppingListItem } from "../components/ShoppingListItem";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getFromStorage, saveToStorage } from "../utils/storage";
+
+const storageKey = "shoppingList";
 
 type ShoppingListItemType = {
   id: string;
@@ -14,37 +17,52 @@ export default function App() {
   const [shoppingList, setShoppingList] = useState<ShoppingListItemType[]>([]);
   const [value, setValue] = useState("");
 
+  useEffect(() => {
+    // get shopping list from storage
+    const fetchInitial = async () => {
+      const data = await getFromStorage(storageKey);
+      if (data) {
+        setShoppingList(data);
+      }
+    };
+    fetchInitial();
+  }, []);
+
   const handleSubmit = () => {
     if (!value) return;
-    setShoppingList([
+    const newShoppingList = [
       ...shoppingList,
       {
         id: String(shoppingList.length + 1),
         name: value,
         lastUpdatedTimestamp: Date.now(),
       },
-    ]);
+    ];
+    setShoppingList(newShoppingList);
+    saveToStorage(storageKey, newShoppingList);
     setValue("");
   };
 
   const handleDelete = (id: string) => {
-    setShoppingList(shoppingList.filter((item) => item.id !== id));
+    const newShoppingList = shoppingList.filter((item) => item.id !== id);
+    setShoppingList(newShoppingList);
+    saveToStorage(storageKey, newShoppingList);
   };
 
   const handleToggleComplete = (id: string) => {
-    setShoppingList(
-      shoppingList.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              lastUpdatedTimestamp: Date.now(),
-              completedAtTimestamp: item.completedAtTimestamp
-                ? undefined
-                : Date.now(),
-            }
-          : item,
-      ),
+    const newShoppingList = shoppingList.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            lastUpdatedTimestamp: Date.now(),
+            completedAtTimestamp: item.completedAtTimestamp
+              ? undefined
+              : Date.now(),
+          }
+        : item,
     );
+    setShoppingList(newShoppingList);
+    saveToStorage(storageKey, newShoppingList);
   };
 
   return (
