@@ -1,9 +1,16 @@
-import { StyleSheet, FlatList, TextInput, Text, View } from "react-native";
+import {
+  StyleSheet,
+  FlatList,
+  TextInput,
+  Text,
+  View,
+  LayoutAnimation,
+} from "react-native";
 import { theme } from "../theme";
 import { ShoppingListItem } from "../components/ShoppingListItem";
 import { useEffect, useState } from "react";
 import { getFromStorage, saveToStorage } from "../utils/storage";
-import { LayoutAnimation } from "react-native";
+import * as Haptics from "expo-haptics";
 
 const storageKey = "shoppingList";
 
@@ -54,17 +61,23 @@ export default function App() {
   };
 
   const handleToggleComplete = (id: string) => {
-    const newShoppingList = shoppingList.map((item) =>
-      item.id === id
-        ? {
-            ...item,
-            lastUpdatedTimestamp: Date.now(),
-            completedAtTimestamp: item.completedAtTimestamp
-              ? undefined
-              : Date.now(),
-          }
-        : item,
-    );
+    const newShoppingList = shoppingList.map((item) => {
+      if (item.id === id) {
+        if (item.completedAtTimestamp) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } else {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        return {
+          ...item,
+          completedAtTimestamp: item.completedAtTimestamp
+            ? undefined
+            : Date.now(),
+          lastUpdatedTimestamp: Date.now(),
+        };
+      }
+      return item;
+    });
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setShoppingList(newShoppingList);
     saveToStorage(storageKey, newShoppingList);
