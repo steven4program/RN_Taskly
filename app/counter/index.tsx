@@ -7,9 +7,16 @@ import { SchedulableTriggerInputTypes } from "expo-notifications";
 import { useEffect, useState } from "react";
 import { TimeSegment } from "../../components/TimeSegment";
 import { Duration, isBefore, intervalToDuration } from "date-fns";
+import { getFromStorage, saveToStorage } from "../../utils/storage";
 
-// 10 seconds from now
-const timestamp = Date.now() + 10 * 1000;
+const frequency = 10 * 1000;
+
+const countdownStorageKey = "taskly-countdown";
+
+type PersistedCountdownState = {
+  currentNotificationId: string | undefined;
+  completedAtTimestamp: number[];
+};
 
 type CountdownStatus = {
   isOverdue: boolean;
@@ -17,13 +24,28 @@ type CountdownStatus = {
 };
 
 export default function CounterScreen() {
+  const [countdownState, setCountdownState] =
+    useState<PersistedCountdownState>();
   const [status, setStatus] = useState<CountdownStatus>({
     isOverdue: false,
     distance: {},
   });
 
+  const lastCompletedAtTimestamp = countdownState?.completedAtTimestamp[0];
+
+  useEffect(() => {
+    const init = async () => {
+      const value = await getFromStorage(countdownStorageKey);
+      setCountdownState(value);
+    };
+    init();
+  }, []);
+
   useEffect(() => {
     const interval = setInterval(() => {
+      const timestamp = lastCompletedAtTimestamp
+        ? lastCompletedAtTimestamp + frequency
+        : Date.now();
       const isOverdue = isBefore(timestamp, Date.now());
       const distance = intervalToDuration(
         isOverdue
@@ -33,18 +55,19 @@ export default function CounterScreen() {
       setStatus({ isOverdue, distance });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [lastCompletedAtTimestamp]);
 
   const scheduleNotification = async () => {
+    let pushNotificationId;
     const result = await registerForPushNotificationsAsync();
     if (result === "granted") {
-      await Notifications.scheduleNotificationAsync({
+      pushNotificationId = await Notifications.scheduleNotificationAsync({
         content: {
-          title: "This is a scheduled notification!",
+          title: "The thing is due!",
         },
         trigger: {
           type: SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: 5,
+          seconds: frequency / 1000,
         },
       });
     } else {
@@ -55,6 +78,20 @@ export default function CounterScreen() {
         );
       }
     }
+    if (countdownState?.currentNotificationId) {
+      await Notifications.cancelScheduledNotificationAsync(
+        countdownState.currentNotificationId,
+      );
+    }
+
+    const newCountdownState: PersistedCountdownState = {
+      currentNotificationId: pushNotificationId,
+      completedAtTimestamp: countdownState
+        ? [Date.now(), ...countdownState.completedAtTimestamp]
+        : [Date.now()],
+    };
+    setCountdownState(newCountdownState);
+    await saveToStorage(countdownStorageKey, newCountdownState);
   };
 
   return (
